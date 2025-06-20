@@ -1,0 +1,32 @@
+# Core dependencies
+streamlit
+pandas
+numpy
+sqlalchemy
+sqlite3-binary
+
+# Plotting and visualization
+plotly
+matplotlib
+
+# Data ingestion
+requests
+beautifulsoup4
+feedparser
+praw              # For Reddit
+twint             # For Twitter scraping (no API)
+
+# Summarization (optional)
+transformers
+torch
+scikit-learn
+
+# Vectorization & Clustering (optional)
+sentence-transformers
+faiss-cpu
+
+# Environment / config
+python-dotenv
+
+# Optional but useful
+tqdm
