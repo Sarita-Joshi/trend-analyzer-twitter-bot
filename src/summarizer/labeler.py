@@ -1,11 +1,19 @@
 from collections import Counter, defaultdict
 import re
 
+import nltk
+from nltk.corpus import stopwords
+from collections import Counter
+import string
+
+# Ensure you have the stopwords downloaded
+nltk.download('stopwords')
+STOP_WORDS = set(stopwords.words('english'))
+
+
 class ClusterLabeler:
     def __init__(self, stopwords=None):
-        self.stopwords = set(stopwords) if stopwords else {
-            "the", "and", "of", "in", "to", "a", "is", "on", "for", "with", "as", "by", "at", "an", "from", "this", "that"
-        }
+        self.stopwords = set(STOP_WORDS) 
 
     def extract_keywords(self, text, top_n=3):
         words = re.findall(r'\b\w+\b', text.lower())
@@ -15,7 +23,7 @@ class ClusterLabeler:
     def label_clusters(self, clustered_summaries):
         cluster_map = defaultdict(list)
         for item in clustered_summaries:
-            cluster_map[item["cluster_id"]].append(item["summary"])
+            cluster_map[item["cluster_id"]].append(item["sentence"])
 
         cluster_labels = {}
         for cluster_id, summaries in cluster_map.items():
@@ -26,7 +34,7 @@ class ClusterLabeler:
 
         # Attach cluster label to each summary
         for item in clustered_summaries:
-            item["cluster_label"] = cluster_labels[item["cluster_id"]]
+            item["cluster_label"] = cluster_labels[item["cluster_id"]] or 'Unlabelled'
 
         return clustered_summaries, cluster_labels
 
