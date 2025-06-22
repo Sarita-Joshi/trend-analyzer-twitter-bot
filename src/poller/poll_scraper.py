@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
-from db.db_manager import DBManager
+from src.db.db_manager import DBManager
 
 class PollScraper:
     def __init__(self):
@@ -15,7 +15,7 @@ class PollScraper:
         try:
             res = requests.get(tweet_url, headers=self.headers)
             if res.status_code != 200:
-                print(f"❌ Failed to fetch tweet page: {res.status_code}")
+                print(f"Failed to fetch tweet page: {res.status_code}")
                 return None
 
             soup = BeautifulSoup(res.text, "html.parser")
@@ -38,7 +38,7 @@ class PollScraper:
             }
 
         except Exception as e:
-            print("❌ Exception while scraping poll:", e)
+            print("Exception while scraping poll:", e)
             return None
 
     def save_poll_result(self, result):

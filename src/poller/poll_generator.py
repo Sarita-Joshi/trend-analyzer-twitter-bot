@@ -1,57 +1,69 @@
 import random
-from collections import defaultdict
+from typing import List
+from src.schemas.article_schema import ArticleSchema
+from src.llm.llm_client import LLMClient
+
+EXAMPLES = [
+    {
+        "context": "Electric car sales surged 40% globally last year, but supply chain issues are causing long wait times. Meanwhile, governments in Europe are pushing stricter emission regulations.",
+        "poll": "EVs are booming with sales surged by 40%, but not able to feed the demand due to restriction and bottlenecks. Should governments ease regulations to speed up production?",
+        "options": ["Yes, prioritize availability", "Keep strict rules", "Offer subsidies instead", "Not sure"]
+    },
+    {
+        "context": "The UN just released a report warning of record-breaking heatwaves and wildfires this summer. Some cities are already imposing water restrictions and curfews to manage the crisis.",
+        "poll": "With heatwaves worsening, should cities enforce stricter water and energy curbs during summer emergencies?",
+        "options": ["Absolutely, save resources", "No, it's too extreme", "Only voluntary limits", "Depends on severity"]
+    },
+    {
+        "context": "A blockbuster video game sequel broke launch day sales records but sparked backlash over heavy microtransactions and loot boxes. Consumer groups are calling for tighter regulations on in-game purchases.",
+        "poll": "A blockbuster video game sequel broke launch day sales records but sparked backlash over heavy microtransactions and loot boxes. Consumer groups are calling for tighter regulations on in-game purchases. Should regulators clamp down on microtransactions and loot boxes in popular video games?",
+        "options": ["Yes, protect players", "No, let the market decide", "Only for kids' games", "Not sure"]
+    }
+]
 
 class PollGenerator:
-    def __init__(self, options_per_poll=3):
-        self.options_per_poll = options_per_poll
+    def __init__(self, topic: str):
+        self.topic = topic
+        self.llm_client = LLMClient(provider='gemini')
 
-    def generate_poll_question(self, label, summaries):
-        template = random.choice([
-            f"What are your thoughts on {label}?",
-            f"Do you support recent updates in {label}?",
-            f"Which aspect of {label} concerns you the most?",
-            f"What should be prioritized in {label}?"
+    def generate_prompt(self, summary: List[str]) -> str:
+        bullet_points = [f"- {a.strip()}" for a in summary]
+        context = "\n".join(bullet_points)
+        few_shot_examples = "\n\n".join([
+            f"Context:\n{e['context']}\nPoll Question: {e['poll']}\nOptions: {', '.join(e['options'])}"
+            for e in EXAMPLES
         ])
-        return template
 
-    def summarize_snippets(self, summaries, max_len=120):
-        seen = set()
-        options = []
-        for s in summaries:
-            text = s['summary']
-            if text not in seen:
-                seen.add(text)
-                options.append(text[:max_len].rstrip(".") + "...")
-            if len(options) >= self.options_per_poll:
-                break
-        return options
-
-    def generate_polls(self, labeled_data):
-        cluster_map = defaultdict(list)
-        for item in labeled_data:
-            cluster_map[item["cluster_id"]].append(item)
-
-        polls = []
-        for cluster_id, items in cluster_map.items():
-            label = items[0]["cluster_label"]
-            question = self.generate_poll_question(label, items)
-            options = self.summarize_snippets(items)
-            polls.append({
-                "cluster_id": cluster_id,
-                "topic": label,
-                "question": question,
-                "options": options,
-            })
-
-        return polls
+        return f"""
+You are a social media strategist who crafts viral polls for X (formerly Twitter) based on current news and trending topics.
+Given a context with recent article headlines or developments, generate a sharp, engaging poll that:
+- Summarizes with references to at least 2 specific developments or examples from the context to ground it in real current events.
+- Uses a conversational, slightly provocative tone as if written by a savvy human social media strategist.
+- Is brief and clear, optimized for X's fast-scrolling audience — keep the poll question under 280 characters.
+- Produces 4 or fewer concise options that cover a range of opinions or possible answers.
+- Limit Question to 280 chars.
 
 
-if __name__ == "__main__":
+Format your response as:
+Poll Question: <Your question here>
+Options: <option1> | <option2> | ... (MAX 4)
 
-    generator = PollGenerator(options_per_poll=3)
-    polls = generator.generate_polls(labeled_data)
+{few_shot_examples}
 
-    for poll in polls:
-        print(f"\nQ: {poll['question']}")
-        for i, opt in enumerate(poll["options"]):
-            print(f"  {chr(65+i)}. {opt}")
+Context:
+{context}
+"""
+
+    def generate_poll(self, articles: List[ArticleSchema]) -> dict:
+        prompt = self.generate_prompt(articles)
+        response = self.llm_client.complete(prompt)
+
+        try:
+            poll_line = next(line for line in response.split("\n") if line.startswith("Poll Question:"))
+            options_line = next(line for line in response.split("\n") if line.startswith("Options:"))
+            poll = poll_line.replace("Poll Question:", "").strip()
+            options = [opt.strip() for opt in options_line.replace("Options:", "").split("|") if opt.strip()]
+            return {"question": poll, "options": options}
+        except Exception as e:
+            print("Failed to parse poll:", e)
+            return {"question": "What’s your take on this week’s tech headlines?", "options": ["Exciting", "Worrying", "Confusing", "Overhyped"]}

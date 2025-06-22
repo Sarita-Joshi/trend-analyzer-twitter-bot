@@ -28,7 +28,7 @@ class PollPoster:
                 poll_duration_minutes=duration_minutes
             )
             tweet_id = response.data['id']
-            print(f"✅ Poll posted: https://x.com/user/status/{tweet_id}")
+            print(f"Poll posted: https://x.com/user/status/{tweet_id}")
             return tweet_id
         except Exception as e:
             print("❌ Failed to post poll:", str(e))
