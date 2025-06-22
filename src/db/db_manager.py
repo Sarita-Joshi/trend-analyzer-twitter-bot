@@ -1,4 +1,5 @@
 import sqlite3
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 import json
@@ -7,14 +8,69 @@ class DBManager:
     def __init__(self, db_path="data/trendpulse.db"):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row  # for dict-like rows
-        self.create_tables()
+        # self.create_tables()
+
+    def insert_run(self, run_id, topic, started_at):
+        self.cursor.execute("""
+            INSERT INTO runs (run_id, topic, started_at, status)
+            VALUES (?, ?, ?, 'started')
+        """, (run_id, topic, started_at))
+        self.conn.commit()
+
+    def update_run_status(self, run_id, status, ended_at=None):
+        self.cursor.execute("""
+            UPDATE runs SET status = ?, ended_at = ?
+            WHERE run_id = ?
+        """, (status, ended_at or datetime.utcnow().isoformat(), run_id))
+        self.conn.commit()
+
+    def update_poll_status(self, run_id, poll_id=None, poll_status=None):
+        updates = []
+        params = []
+        if poll_id:
+            updates.append("poll_id = ?")
+            params.append(poll_id)
+        if poll_status:
+            updates.append("poll_status = ?")
+            params.append(poll_status)
+
+        query = f"UPDATE runs SET {', '.join(updates)} WHERE run_id = ?"
+        params.append(run_id)
+
+        self.cursor.execute(query, tuple(params))
+        self.conn.commit()
+
+    def insert_trend_items(self, articles):
+        values = []
+        for article in articles:
+            a = asdict(article)
+            values.append((
+                a["run_id"],
+                a["source"],
+                a.get("source_domain"),
+                a.get("url"),
+                a.get("resolved_url"),
+                a["title"],
+                a["content"],
+                a.get("published_at"),
+                a.get("summary"),
+                ",".join(a.get("keywords", [])) if a.get("keywords") else None,
+                a.get("author"),
+                a.get("cluster_id"),
+                a.get("cluster_label")
+            ))
 
 
-    def insert_trend_item(self, run_id, topic, source, title, content, url, score=None):
-        self.conn.execute('''
-        INSERT INTO aggregated_trends (run_id, topic, source, title, content, url, score, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (run_id, topic, source, title, content, url, score or 0, datetime.utcnow().isoformat()))
+        insert_query = """
+        INSERT INTO articles (
+            run_id, source, source_domain, url, resolved_url, title,
+            content, published_at, summary, keywords, author,
+            cluster_id, cluster_label
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+
+        with self.conn:
+            self.conn.executemany(insert_query, values)
         self.conn.commit()
 
     def get_trends_by_topic(self, topic, limit=20):
@@ -72,6 +128,7 @@ class DBManager:
             datetime.now()
         ))
         self.conn.commit()
+        return cursor.lastrowid
 
     from datetime import datetime
 

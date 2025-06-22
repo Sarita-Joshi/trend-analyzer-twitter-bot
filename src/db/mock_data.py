@@ -79,4 +79,4 @@ for opt, pct in options:
 
 conn.commit()
 conn.close()
-print("✅ Sample poll and results inserted.")
+print("Sample poll and results inserted.")
