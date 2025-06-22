@@ -12,7 +12,8 @@ from src.schemas.article_schema import ArticleSchema
 
 
 class GoogleNewsIngestor:
-    def __init__(self, query="AI", max_articles=10):
+    def __init__(self, run_id, query="AI", max_articles=10):
+        self.run_id = run_id
         self.query = query
         self.feed_url = f"https://news.google.com/rss/search?q={query}"
         self.max_articles = max_articles
@@ -37,7 +38,7 @@ class GoogleNewsIngestor:
         except Exception:
             return url  # fallback to original if failure
 
-    def fetch(self, run_id):
+    def fetch(self):
         try:
             self.create_driver()
             feed = feedparser.parse(self.feed_url)
@@ -58,9 +59,9 @@ class GoogleNewsIngestor:
                     summary = entry.get("summary", "")
 
                 article = ArticleSchema(
-                    run_id=run_id,
+                    run_id=self.run_id,
                     source="Google News",
-                    source_domain=entry.source.name,
+                    source_domain=entry.source,
                     url=entry.link,
                     resolved_url=resolved_url,
                     title=entry.title,
