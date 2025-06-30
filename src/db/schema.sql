@@ -5,8 +5,6 @@ CREATE TABLE IF NOT EXISTS runs (
     started_at TEXT,
     ended_at TEXT,
     status TEXT,           -- success | failed
-    poll_id TEXT,
-    poll_status TEXT       -- active | complete | error
 );
 
 
@@ -26,8 +24,6 @@ CREATE TABLE IF NOT EXISTS articles (
     summary_extractive TEXT,
     keywords TEXT,                   -- Optional comma-separated string
     author TEXT,
-    cluster_id INTEGER,
-    cluster_label TEXT,
     FOREIGN KEY (run_id) REFERENCES runs(run_id)
 );
 
@@ -41,17 +37,44 @@ CREATE TABLE IF NOT EXISTS polls (
     question TEXT,
     options TEXT,  -- JSON string
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    complete BOOLEAN DEFAULT 0,
+    total_votes INTEGER DEFAULT 0
     FOREIGN KEY (run_id) REFERENCES runs(run_id)
 );
 
 CREATE TABLE IF NOT EXISTS poll_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tweet_id TEXT,
-    run_id TEXT,
-    cluster_id INTEGER,
+    id TEXT PRIMARY KEY,
+    poll_id TEXT,
     option_text TEXT,
     vote_percent REAL,
     vote_total TEXT,
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tweet_id) REFERENCES polls(id)
+    FOREIGN KEY (poll_id) REFERENCES polls(id)
+);
+
+
+CREATE VIEW IF NOT EXISTS aggregated_trends AS
+SELECT
+    a.run_id,
+    r.topic,
+    a.cluster_id,
+    MAX(a.title) AS title,
+    MAX(a.summary) AS summary,
+    GROUP_CONCAT(DISTINCT a.source) AS source,
+    MAX(a.published_at) AS timestamp
+FROM articles a
+JOIN runs r ON a.run_id = r.run_id
+GROUP BY a.run_id, a.cluster_id;
+
+CREATE TABLE IF NOT EXISTS summary_sentences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id TEXT,
+    sentence TEXT,
+    cluster_id INTEGER,
+    cluster_label TEXT,
+    distance_to_center REAL,
+    cluster_size INTEGER,
+    is_outlier BOOLEAN,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (article_id) REFERENCES articles(id)
 );
