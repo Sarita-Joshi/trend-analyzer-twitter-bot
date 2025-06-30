@@ -57,11 +57,11 @@ class GoogleNewsIngestor:
                 except Exception as e:
                     content = f"Error fetching content: {e}"
                     summary = entry.get("summary", "")
-
+    
                 article = ArticleSchema(
                     run_id=self.run_id,
                     source="Google News",
-                    source_domain=entry.source,
+                    source_domain=entry.source.title,
                     url=entry.link,
                     resolved_url=resolved_url,
                     title=entry.title,

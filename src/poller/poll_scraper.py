@@ -11,7 +11,7 @@ class PollScraper:
 
     def get_page_source(self, tweet_url):
         chrome_options = Options()
-        chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
 
         driver = webdriver.Chrome(options=chrome_options)
         driver.get(tweet_url)
@@ -36,10 +36,19 @@ class PollScraper:
             percent_text = li.find_all('span', recursive=True)[-1].get_text(strip=True)
             options.append((option_text, percent_text))
 
+
+        if not options:
+            for li in poll_div.find_all('div', {'role': 'radio'}):
+                option_text = li.find_all('span', recursive=True)[1].get_text(strip=True)
+                percent_text = li.find_all('span', recursive=True)[-1].get_text(strip=True)
+                if percent_text == option_text: percent_text = '0%'
+                options.append((option_text, percent_text)) 
+        
         total_votes = None
         for span in poll_div.find_all('span'):
             if 'votes' in span.get_text():
                 total_votes = span.get_text(strip=True)
+                total_votes = int(total_votes.split()[0])
                 break
         
         return {
@@ -49,23 +58,24 @@ class PollScraper:
         }
 
 
-    def save_poll_result(self, tweeet_id, run_id, result):
+    def save_poll_result(self, tweet_id, run_id, result):
 
-        if result:
+        if result: 
             for opt in result["options"]:
                 # Parse "Option A 52.3%" → split text & percent
-                *label_parts, percent_str = opt.split()
+                *label_parts, percent_str = opt[0], opt[1]
                 option_text = " ".join(label_parts)
                 percent = float(percent_str.strip('%'))
                 self.db.insert_poll_result(
-                    tweet_id=tweet_id,
-                    run_id=run_id,
+                    poll_id=tweet_id,
                     option_text=option_text,
                     vote_percent=percent,
                     vote_total=result["votes"]
                 )
                 
-                self.db.update_poll_status(run_id,tweet_id, "Complete")
+                self.db.update_poll_status(tweet_id, 1)
+                self.db.update_poll_votes(tweet_id,result['votes'])
+                print('inserted poll result')
 
 if __name__ == "__main__":
 

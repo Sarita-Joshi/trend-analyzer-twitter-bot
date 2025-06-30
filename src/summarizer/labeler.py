@@ -36,7 +36,7 @@ class ClusterLabeler:
         for item in clustered_summaries:
             item["cluster_label"] = cluster_labels[item["cluster_id"]] or 'Unlabelled'
 
-        return clustered_summaries, cluster_labels
+        return clustered_summaries
 
 if __name__=="__main__":
     

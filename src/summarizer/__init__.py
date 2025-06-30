@@ -33,7 +33,7 @@ class Summarizer:
         embeddings = self.embedder.embed_summaries([s["sentence"] for s in sentence_data])
     
         # Step 4: Cluster
-        cluster_data = self.clusterer.cluster(sentence_data)
+        cluster_data = self.clusterer.cluster(embeddings)
 
         final_lst = []
         for sent, clu in zip(sentence_data,cluster_data):

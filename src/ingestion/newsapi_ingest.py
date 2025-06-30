@@ -26,8 +26,6 @@ class NewsAPIIngestor:
             "sortBy": "publishedAt",
         }
 
-        print(self.url, params)
-
         response = requests.get(self.url, params=params)
         if response.status_code != 200:
             raise Exception(f"Failed to fetch NewsAPI data: {response.status_code}")

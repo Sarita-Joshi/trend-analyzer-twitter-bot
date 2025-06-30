@@ -21,7 +21,7 @@ def fetch_data():
 articles, polls, results = fetch_data()
 
 # Header Row with Title + KPIs
-col0, col1, col2, col3 = st.columns([3, 1, 1, 1])
+col0, col1, col2, col3, col4 = st.columns([3, 1, 1, 1, 1])
 with col0:
     st.title("🗞️ TrendPulse Dashboard")
 with col1:
@@ -29,8 +29,11 @@ with col1:
 with col2:
     st.metric("📊 Polls", len(polls))
 with col3:
-    active_polls = results['tweet_id'].nunique()
+    active_polls = polls[polls['complete']==0].shape[0]
     st.metric("✅ Active Polls", active_polls)
+with col4:
+    if isinstance(polls['total_votes'].sum(), int):
+        st.metric("📊 Votes", polls['total_votes'].sum())
 
 st.divider()
 
@@ -43,12 +46,13 @@ selected_date = st.sidebar.date_input("Date (Published)", None)
 filtered_polls = polls.copy()
 if selected_run:
     filtered_polls = filtered_polls[filtered_polls['run_id'] == selected_run]
+    selected_poll_ids = filtered_polls['id']
 if selected_theme != 'All':
     filtered_polls = filtered_polls[filtered_polls['cluster_id'] == selected_theme]
 if selected_date:
     filtered_polls = filtered_polls[pd.to_datetime(filtered_polls['created_at']).dt.date == selected_date]
 
-filtered_results = results[results['run_id'] == selected_run]
+filtered_results = results[results['poll_id'].isin(selected_poll_ids)]
 
 # Second Row - Polls Table & Details
 left, right = st.columns([1.8, 1.2])
@@ -58,41 +62,40 @@ with left:
     display_polls = filtered_polls[['run_id', 'cluster_id', 'question', 'created_at']].copy()
     st.dataframe(display_polls, use_container_width=True, height=300)
 
-    selected_row = filtered_polls.iloc[0]
+    if filtered_polls.shape[0]:
+        selected_row = filtered_polls.iloc[0]
 
 with right:
     st.subheader("📊 Poll Details")
-    st.markdown(f"### 🟡 {selected_row['question']}")
-    options = json.loads(selected_row['options'])
-    poll_id = str(selected_row['id'])
-    if poll_id in filtered_results['tweet_id'].values:
-        poll_data = filtered_results[filtered_results['tweet_id'] == poll_id]
-        for _, opt_row in poll_data.iterrows():
-            st.progress(opt_row['vote_percent'] / 100.0, text=f"{opt_row['option_text']}: {opt_row['vote_percent']}%")
-    else:
-        for opt in options:
-            st.write(f"🔘 {opt}")
+    if filtered_polls.shape[0]:
+        st.markdown(f"### 🟡 {selected_row['question']}")
+        options = json.loads(selected_row['options'])
+        poll_id = str(selected_row['id'])
+        if poll_id in filtered_results['poll_id'].values:
+            poll_data = filtered_results[filtered_results['poll_id'] == poll_id]
+            for _, opt_row in poll_data.iterrows():
+                st.progress(opt_row['vote_percent'] / 100.0, text=f"{opt_row['option_text']}: {opt_row['vote_percent']}%")
+        else:
+            for opt in options:
+                st.write(f"🔘 {opt}")
 
-st.divider()
+
 
 # Filter for Metadata
 st.sidebar.header("📁 Filter Articles")
 selected_source = st.sidebar.selectbox("Source", ['All'] + sorted(articles['source'].dropna().unique()))
-selected_cluster = st.sidebar.selectbox("Cluster Label", ['All'] + sorted(articles['cluster_id'].dropna().unique()))
 
 filtered_articles = articles[articles['run_id'] == selected_run]
 if selected_source != 'All':
     filtered_articles = filtered_articles[filtered_articles['source'] == selected_source]
-if selected_cluster != 'All':
-    filtered_articles = filtered_articles[filtered_articles['cluster_id'] == selected_cluster]
 
 # Metadata Section
-st.subheader("🧾 Article Metadata & Themes")
+st.subheader("Article Metadata & Themes")
 metadata_col1, metadata_col2 = st.columns([1.8, 1.2])
 
 with metadata_col1:
     st.write("### 📄 Articles")
-    st.dataframe(filtered_articles[['source', 'title', 'published_at', 'cluster_id']], use_container_width=True, height=300)
+    st.dataframe(filtered_articles[['source', 'title', 'published_at']], use_container_width=True, height=300)
 
 with metadata_col2:
     st.write("### 📈 Theme-wise Poll Trends")

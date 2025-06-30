@@ -11,9 +11,9 @@ from datetime import datetime
 SAMPLE_CONFIG = {
     'reddit': True,
     'x': False,
-    'goggle-news': True,
+    'google-news': True,
     'hacker-news': True,
-    'news-api': False, #Temp - not to use api credits until testing
+    'news-api': True, #Temp - not to use api credits until testing
 }
 
 class TrendAggregator:

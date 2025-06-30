@@ -40,16 +40,13 @@ class DBManager:
                 a.get("summary"),
                 ",".join(a.get("keywords", [])) if a.get("keywords") else None,
                 a.get("author"),
-                a.get("cluster_id"),
-                a.get("cluster_label")
             ))
 
         insert_query = """
         INSERT INTO articles (
             run_id, source, source_domain, url, resolved_url, title,
-            content, published_at, summary, keywords, author,
-            cluster_id, cluster_label
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            content, published_at, summary, keywords, author
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         self.conn.executemany(insert_query, values)
         self.conn.commit()
@@ -64,7 +61,7 @@ class DBManager:
         INSERT INTO summary_sentences (
             article_id, sentence, cluster_id, cluster_label,
             distance_to_center, cluster_size, is_outlier
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES ( ?, ?, ?, ?, ?, ?, ?)
         """
 
         values = [
@@ -101,17 +98,23 @@ class DBManager:
     def update_poll_status(self, poll_id, status):
         self.cursor.execute("""
             UPDATE polls SET complete = ?
-            WHERE poll_id = ?
+            WHERE id = ?
         """, (status, poll_id))
         self.conn.commit()
 
-    def insert_poll_result(self, poll_id, run_id, option_text, vote_percent, vote_total):
+    def update_poll_votes(self, poll_id, vote_count):
         self.cursor.execute("""
-            INSERT INTO poll_results (poll_id, run_id, option_text, vote_percent, vote_total, scraped_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            UPDATE polls SET total_votes = ?
+            WHERE id = ?
+        """, (vote_count, poll_id))
+        self.conn.commit()
+
+    def insert_poll_result(self, poll_id, option_text, vote_percent, vote_total):
+        self.cursor.execute("""
+            INSERT INTO poll_results (poll_id, option_text, vote_percent, vote_total, scraped_at)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             poll_id,
-            run_id,
             option_text,
             vote_percent,
             vote_total,
@@ -121,6 +124,25 @@ class DBManager:
 
     def close(self):
         self.conn.close()
+
+    def print_table(self, table):
+        """
+        Print the specified table in the connected SQLite database.
+        """
+        try:
+            self.cursor.execute(f"SELECT * FROM {table}")
+            rows = self.cursor.fetchall()
+            if not rows:
+                print(f"Table '{table}' is empty.")
+                return
+            # Print column names
+            print(" | ".join(rows[0].keys()))
+            print("-" * 40)
+            for row in rows:
+                print(" | ".join(str(row[col]) for col in row.keys()))
+        except sqlite3.Error as e:
+            print(f"Error printing table '{table}': {e}")
+
 
 
 # Optional quick test
