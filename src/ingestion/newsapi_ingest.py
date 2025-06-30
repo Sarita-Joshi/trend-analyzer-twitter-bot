@@ -9,7 +9,6 @@ from src.schemas.article_schema import ArticleSchema  # Adjust path if needed
 
 load_dotenv()
 
-print(os.getenv('NEWS_API_KEY'))
 class NewsAPIIngestor:
     def __init__(self, run_id: str, api_key=None, query="AI", max_results=10):
         self.api_key = api_key or os.getenv("NEWS_API_KEY")

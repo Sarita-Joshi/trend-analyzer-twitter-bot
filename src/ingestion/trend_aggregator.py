@@ -30,7 +30,7 @@ class TrendAggregator:
         # Reddit
         try:
             if self.config.get('reddit'):
-                reddit = RedditIngestor(run_id=self.run_id, subreddit=self.topic, limit=2)
+                reddit = RedditIngestor(run_id=self.run_id, subreddit=self.topic, limit=5)
                 items = reddit.fetch()
                 self.collected.extend(items)
                 print('Collected posts from Reddit.')
@@ -47,7 +47,7 @@ class TrendAggregator:
         # Hacker News
         try:
             if self.config.get('hacker-news'):
-                hn = HackerNewsIngestor(run_id=self.run_id, limit=2)
+                hn = HackerNewsIngestor(run_id=self.run_id, limit=5)
                 items = hn.fetch()
                 self.collected.extend(items)
                 print('Collected stories from HackerNews.')
@@ -57,7 +57,7 @@ class TrendAggregator:
         # Google News
         try:
             if self.config.get('google-news'):
-                gn = GoogleNewsIngestor(run_id=self.run_id, query=self.topic, max_articles=2)
+                gn = GoogleNewsIngestor(run_id=self.run_id, query=self.topic, max_articles=5)
                 items = gn.fetch()
                 self.collected.extend(items)
                 print('Collected articles from Google News.')
@@ -67,7 +67,7 @@ class TrendAggregator:
         # NewsAPI
         try:
             if self.config.get('news-api'):
-                na = NewsAPIIngestor(run_id=self.run_id, query=self.topic, max_results=2)
+                na = NewsAPIIngestor(run_id=self.run_id, query=self.topic, max_results=5)
                 items = na.fetch()
                 self.collected.extend(items)
                 print('Collected articles from NewsAPI.')
