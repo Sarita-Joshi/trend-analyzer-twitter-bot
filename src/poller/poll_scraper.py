@@ -1,47 +1,55 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
-import re
+import time
 
 from src.db.db_manager import DBManager
 
 class PollScraper:
     def __init__(self):
-        self.headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
         self.db = DBManager()
 
+    def get_page_source(self, tweet_url):
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(tweet_url)
+
+        time.sleep(5)
+        page_source = driver.page_source
+        driver.quit()
+
+        return page_source
+
     def fetch_poll(self, tweet_url):
-        try:
-            res = requests.get(tweet_url, headers=self.headers)
-            if res.status_code != 200:
-                print(f"Failed to fetch tweet page: {res.status_code}")
-                return None
-
-            soup = BeautifulSoup(res.text, "html.parser")
-
-            # Poll options are embedded in spans with %
-            options = []
-            for span in soup.find_all("span", string=re.compile(r"\d{1,3}\.\d%")):
-                text = span.get_text(strip=True)
-                percent_match = re.search(r"(\d{1,3}\.\d)%", text)
-                if percent_match:
-                    options.append(text)
-
-            # Try to extract vote count
-            votes_tag = soup.find("span", string=re.compile(r"votes"))
-            votes = votes_tag.get_text(strip=True) if votes_tag else "Unknown"
-
-            return {
-                "options": options,
-                "votes": votes
-            }
-
-        except Exception as e:
-            print("Exception while scraping poll:", e)
+        page_source = self.get_page_source(tweet_url)
+        soup = BeautifulSoup(page_source, 'html.parser')
+        tweet = soup.find('div', {'data-testid': 'tweetText'})
+        if not tweet:
             return None
 
-    def save_poll_result(self, result):
+        poll_div = soup.find('div', {'data-testid': 'cardPoll'})
+        options = []
+        for li in poll_div.find_all('li', {'role': 'listitem'}):
+            option_text = li.find_all('span', recursive=True)[1].get_text(strip=True)
+            percent_text = li.find_all('span', recursive=True)[-1].get_text(strip=True)
+            options.append((option_text, percent_text))
+
+        total_votes = None
+        for span in poll_div.find_all('span'):
+            if 'votes' in span.get_text():
+                total_votes = span.get_text(strip=True)
+                break
+        
+        return {
+            "poll": tweet.get_text(),
+            "options": options,
+            "votes": total_votes
+        }
+
+
+    def save_poll_result(self, tweeet_id, run_id, result):
 
         if result:
             for opt in result["options"]:
@@ -52,17 +60,18 @@ class PollScraper:
                 self.db.insert_poll_result(
                     tweet_id=tweet_id,
                     run_id=run_id,
-                    cluster_id=cluster_id,
                     option_text=option_text,
                     vote_percent=percent,
                     vote_total=result["votes"]
                 )
+                
+                self.db.update_poll_status(run_id,tweet_id, "Complete")
 
 if __name__ == "__main__":
 
     scraper = PollScraper()
-
-    tweet_url = "https://x.com/your_handle/status/1234567890123456789"
+    tweet_id = "1936706311997317549"
+    tweet_url = "https://x.com/trendpulse325/status/" + tweet_id
     result = scraper.fetch_poll(tweet_url)
 
     print(result)
